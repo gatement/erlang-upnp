@@ -1,78 +1,116 @@
 -module(upnp).
 -compile(export_all).
 
-%%===================== client ============================
-client() ->
-    client(<<"M-SEARCH * HTTP/1.1\r\nHost:239.255.255.250:1900\r\nMan:\"ssdp:discover\"\r\nMx:5\r\nST:ssdp:rootdevice\r\n\r\n">>).
 
-client(Request) ->
-    {ok, Socket} = gen_udp:open(0, [binary, {broadcast, true}]),
-    ok = gen_udp:send(Socket, "239.255.255.250" , 1900, Request),
-    receive Any ->
-                io:format("received:~p~n", [Any])
-    after 10000 ->
-        error
-    end,
+%% ===================================================================
+%% API functions
+%% ===================================================================
 
-    gen_udp:close(Socket).
+get_external_ip() ->
+    {GatewayIp, GatewayPort} = get_gateway_ip_port(),
 
-
-post() ->
-    ServerHost = "192.168.1.7",
-    ServerPort = 1900,
-    case gen_tcp:connect(ServerHost, ServerPort, [binary, {active, true}]) of
+    case gen_tcp:connect(GatewayIp, GatewayPort, [list, {active, true}]) of
         {ok, Socket} ->
-            error_logger:info_msg("client===============================> ~p~n", ["connected"]),    
-            do_post(Socket),
-            receive Any ->
-                        io:format("received:~p~n", [Any])
+            %io:format("==========================> ~p~n", ["connected"]),    
+            RequestData = get_GetExternalIPAddress_request_data(GatewayIp, GatewayPort),
+            gen_tcp:send(Socket, RequestData),
+            ExternalIp = receive {tcp, _, Msg} ->
+                        %io:format("received:~p~n", [Msg]),
+                        StartIndex = string:str(Msg, "<NewExternalIPAddress>") + erlang:length("<NewExternalIPAddress>"),
+                        Length = string:str(Msg,"</NewExternalIPAddress>") - StartIndex,
+                        string:substr(Msg, StartIndex, Length)
             after 10000 ->
                 error
             end,
             gen_tcp:close(Socket),
-            error_logger:info_msg("client===============================> ~p~n", ["disconnected"]), 
-            ok;
+            %io:format("==========================> ~p~n", ["disconnected"]), 
+            ExternalIp;
         _ ->
             Reason = "connection error",
-            io:format("~p", [Reason])
+            io:format("~p", [Reason]),
+            error
     end.
 
 
-do_post(Socket) ->
-    DeviceType = "WANIPConnection:1",
-    Action = "GetStatusInfo",
-    ControlUrl = "/ipc",
-    Host = "192.168.1.7",
-    Port = 1900,
-
-    Body = io_lib:format("<?xml version=\"1.0\"?><s:Envelope xmlns:s=\"http://schemas.xmlsoap.org/soap/envelope/\" s:encodingStyle=\"http://schemas.xmlsoap.org/soap/encoding/\"><s:Body><u:~s xmlns:u=\"urn:schemas-upnp-org:service:~s\"></u:~s></s:Body></s:Envelope>", 
-        [Action, DeviceType, Action]),
-
-    Length = erlang:length(Body),
-
-    Msg = lists:flatten(io_lib:format("POST ~s HTTP/1.1\r\nHOST: ~s:~p\r\nCONTENT-TYPE: text/xml; charset=\"utf-8\"\r\nCONTENT-LENGTH: ~p\r\nUSER-AGENT: OS/version UPnP/1.1 product/version\r\nSOAPACTION: \"urn:schemas-upnp-org:service:~s#~s\"\r\n\r\n~s", 
-        [ControlUrl, Host, Port, Length, DeviceType, Action, Body])),
-
-    io:format("~n~p~n~n", [Msg]),
-
-    gen_tcp:send(Socket, erlang:list_to_binary(Msg)).
+add_port_mapping() ->
+    add_port_mapping(55556, 55555, 200).
 
 
-%%===================== server ============================
+add_port_mapping(ExternalPort, InternalPort, LeaseDuration) ->
+    {GatewayIp, GatewayPort} = get_gateway_ip_port(),
 
-server() ->
-    spawn(fun() -> server(4000) end).
-
-server(Port) ->
-    {ok, Socket} = gen_udp:open(Port, [binary]),
-    loop(Socket).
-
-
-loop(Socket) ->
-    receive
-        {udp, Socket, Host, Port, Bin} ->
-        io:format("received:~p~n", [Bin]),
-        BinReply = <<"received!">>,
-        gen_udp:send(Socket, Host, Port, BinReply),
-        loop(Socket)
+    case gen_tcp:connect(GatewayIp, GatewayPort, [list, {active, true}]) of
+        {ok, Socket} ->
+            io:format("==========================> ~p~n", ["connected"]),    
+            RequestData = get_AddPortMapping_request_data(GatewayIp, GatewayPort, ExternalPort, InternalPort, LeaseDuration),
+            gen_tcp:send(Socket, RequestData),
+            receive {tcp, _, Msg} ->
+                        io:format("received:~p~n", [Msg])
+            after 10000 ->
+                error
+            end,
+            gen_tcp:close(Socket),
+            io:format("==========================> ~p~n", ["disconnected"]);
+        _ ->
+            Reason = "connection error",
+            io:format("~p", [Reason]),
+            error
     end.
+
+%% ===================================================================
+%% Local Functions
+%% ===================================================================
+
+get_gateway_ip_port() ->
+    Msg = msearch(),
+    StartIndex = string:str(Msg, "http://") + erlang:length("http://"),
+    Msg2 = string:substr(Msg, StartIndex),
+
+    StartIndex2 = string:str(Msg2, ":"),
+    StartIndex3 = string:str(Msg2, "/"),
+    GatewayIp = string:substr(Msg2, 1, StartIndex2 - 1),
+    GatewayPort = erlang:list_to_integer(string:substr(Msg2, StartIndex2 + 1, StartIndex3 - StartIndex2 -1)),
+
+    {GatewayIp, GatewayPort}.
+
+
+msearch() ->
+    Request = <<"M-SEARCH * HTTP/1.1\r\nHost:239.255.255.250:1900\r\nMan:\"ssdp:discover\"\r\nMx:5\r\nST:ssdp:rootdevice\r\n\r\n">>,
+
+    {ok, Socket} = gen_udp:open(0, [list, {broadcast, true}]),
+    ok = gen_udp:send(Socket, "239.255.255.250", 1900, Request),
+    Result = receive 
+        {udp, _Socket, _Ip, _Port, Msg} ->
+            %io:format("M-SEARCH result: ~p~n", [Msg]), 
+            Msg
+    after 10000 ->
+        error
+    end,
+
+    gen_udp:close(Socket), 
+
+    Result.
+
+
+get_GetExternalIPAddress_request_data(GatewayIp, GatewayPort) ->
+    Body = "<SOAP-ENV:Envelope xmlns:SOAP-ENV=\"http://schemas.xmlsoap.org/soap/envelope/\" SOAP-ENV:encodingStyle=\"http://schemas.xmlsoap.org/soap/encoding/\"><SOAP-ENV:Body><m:GetExternalIPAddress xmlns:m=\"urn:schemas-upnp-org:service:WANIPConnection:1\"/></SOAP-ENV:Body></SOAP-ENV:Envelope>",
+    BodyLength = erlang:length(Body),
+    Header = io_lib:format("POST /ipc HTTP/1.1\r\nCache-Control: no-cache\r\nConnection: Close\r\nPragma: no-cache\r\nContent-Type: text/xml; charset=\"utf-8\"\r\nUser-Agent: Microsoft-Windows/6.1 UPnP/1.0\r\nSOAPAction: \"urn:schemas-upnp-org:service:WANIPConnection:1#GetExternalIPAddress\"\r\nContent-Length: ~p\r\nHost: ~s:~p\r\n\r\n", [BodyLength, GatewayIp, GatewayPort]),
+    
+    erlang:list_to_binary(lists:flatten(Header ++ Body)).
+
+
+get_AddPortMapping_request_data(GatewayIp, GatewayPort, ExternalPort, InternalPort, LeaseDuration) ->
+    LocalIp = get_local_ip(),
+
+    Body = io_lib:format("<?xml version=\"1.0\"?><SOAP-ENV:Envelope xmlns:SOAP-ENV=\"http://schemas.xmlsoap.org/soap/envelope/\" SOAP-ENV:encodingStyle=\"http://schemas.xmlsoap.org/soap/encoding/\"><SOAP-ENV:Body><m:AddPortMapping xmlns:m=\"urn:schemas-upnp-org:service:WANIPConnection:1\"><NewRemoteHost xmlns:dt=\"urn:schemas-microsoft-com:datatypes\" dt:dt=\"string\"></NewRemoteHost><NewExternalPort xmlns:dt=\"urn:schemas-microsoft-com:datatypes\" dt:dt=\"ui2\">~p</NewExternalPort><NewProtocol xmlns:dt=\"urn:schemas-microsoft-com:datatypes\" dt:dt=\"string\">TCP</NewProtocol><NewInternalPort xmlns:dt=\"urn:schemas-microsoft-com:datatypes\" dt:dt=\"ui2\">~p</NewInternalPort><NewInternalClient xmlns:dt=\"urn:schemas-microsoft-com:datatypes\" dt:dt=\"string\">~s</NewInternalClient><NewEnabled xmlns:dt=\"urn:schemas-microsoft-com:datatypes\" dt:dt=\"boolean\">1</NewEnabled><NewPortMappingDescription xmlns:dt=\"urn:schemas-microsoft-com:datatypes\" dt:dt=\"string\">JohnsonTest</NewPortMappingDescription><NewLeaseDuration xmlns:dt=\"urn:schemas-microsoft-com:datatypes\" dt:dt=\"ui4\">~p</NewLeaseDuration></m:AddPortMapping></SOAP-ENV:Body></SOAP-ENV:Envelope>", [ExternalPort, InternalPort, LocalIp, LeaseDuration]),
+    BodyLength = erlang:length(Body),
+    Header = io_lib:format("POST /ipc HTTP/1.1\r\nCache-Control: no-cache\r\nConnection: Close\r\nPragma: no-cache\r\nContent-Type: text/xml; charset=\"utf-8\"\r\nUser-Agent: Microsoft-Windows/6.1 UPnP/1.0\r\nSOAPAction: \"urn:schemas-upnp-org:service:WANIPConnection:1#AddPortMapping\"\r\nContent-Length: ~p\r\nHost: ~s:~p\r\n\r\n", [BodyLength, GatewayIp, GatewayPort]),
+    
+    erlang:list_to_binary(lists:flatten(Header ++ Body)).
+
+
+get_local_ip() ->
+   {ok, HostName} = inet:gethostname(),
+   {ok, {A, B, C, D}} = inet:getaddr(HostName, inet),
+   lists:flatten(io_lib:format("~p.~p.~p.~p", [A, B, C, D])).
