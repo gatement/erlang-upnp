@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<root xmlns="urn:schemas-upnp-org:device-1-0">
+<specVersion>
+<major>1</major>
+<minor>0</minor>
+</specVersion>
+<URLBase/>
+<device>
+<deviceType>urn:schemas-upnp-org:device:InternetGatewayDevice:1</deviceType>
+<presentationURL>http://192.168.1.1:80       </presentationURL>
+<friendlyName>Wireless N Router WR740N</friendlyName>
+<manufacturer>TP-LINK</manufacturer>
+<manufacturerURL>http://www.tp-link.com.cn</manufacturerURL>
+<modelDescription>TL-WR740N 5.0/6.0/7.0</modelDescription>
+<modelName>TL-WR740N</modelName>
+<modelNumber>5.0/6.0/7.0</modelNumber>
+<UDN>uuid:upnp-InternetGatewayDevice-192168115678900001</UDN>
+<UPC>123456789001</UPC>
+<serviceList>
+<service>
+<serviceType>urn:schemas-upnp-org:service:Layer3Forwarding:1</serviceType>
+<serviceId>urn:upnp-org:serviceId:L3Forwarding1</serviceId>
+<controlURL>/l3f</controlURL>
+<eventSubURL>/l3f</eventSubURL>
+<SCPDURL>/l3f.xml</SCPDURL>
+</service>
+</serviceList>
+<deviceList>
+<device>
+<deviceType>urn:schemas-upnp-org:device:WANDevice:1</deviceType>
+<friendlyName>WAN Device</friendlyName>
+<manufacturer>TP-LINK</manufacturer>
+<manufacturerURL>http://www.tp-link.com.cn</manufacturerURL>
+<modelDescription>WAN Device</modelDescription>
+<modelName>WAN Device</modelName>
+<modelNumber>1</modelNumber>
+<modelURL/>
+<serialNumber>12345678900001</serialNumber>
+<UDN>uuid:upnp-WANDevice-192168115678900001</UDN>
+<UPC>123456789001</UPC>
+<serviceList>
+<service>
+<serviceType>urn:schemas-upnp-org:service:WANCommonInterfaceConfig:1</serviceType>
+<serviceId>urn:upnp-org:serviceId:WANCommonInterfaceConfig</serviceId>
+<controlURL>/ifc</controlURL>
+<eventSubURL>/ifc</eventSubURL>
+<SCPDURL>/ifc.xml</SCPDURL>
+</service>
+</serviceList>
+<deviceList>
+<device>
+<deviceType>urn:schemas-upnp-org:device:WANConnectionDevice:1</deviceType>
+<friendlyName>WAN Connection Device</friendlyName>
+<manufacturer>TP-LINK</manufacturer>
+<manufacturerURL>http://www.tp-link.com.cn</manufacturerURL>
+<modelDescription>WAN Connection Device</modelDescription>
+<modelName>WAN Connection Device</modelName>
+<modelNumber>1</modelNumber>
+<modelURL/>
+<serialNumber>12345678900001</serialNumber>
+<UDN>uuid:upnp-WANConnectionDevice-192168115678900001</UDN>
+<UPC>123456789001</UPC>
+<serviceList>
+<service>
+<serviceType>urn:schemas-upnp-org:service:WANIPConnection:1</serviceType>
+<serviceId>urn:upnp-org:serviceId:WANIPConnection</serviceId>
+<controlURL>/ipc</controlURL>
+<eventSubURL>/ipc</eventSubURL>
+<SCPDURL>/ipc.xml</SCPDURL>
+</service>
+</serviceList>
+</device>
+</deviceList>
+</device>
+</deviceList>
+</device>
+</root>
