@@ -17,6 +17,47 @@ client(Request) ->
     gen_udp:close(Socket).
 
 
+post() ->
+    ServerHost = "192.168.1.7",
+    ServerPort = 1900,
+    case gen_tcp:connect(ServerHost, ServerPort, [binary, {active, true}]) of
+        {ok, Socket} ->
+            error_logger:info_msg("client===============================> ~p~n", ["connected"]),    
+            do_post(Socket),
+            receive Any ->
+                        io:format("received:~p~n", [Any])
+            after 10000 ->
+                error
+            end,
+            gen_tcp:close(Socket),
+            error_logger:info_msg("client===============================> ~p~n", ["disconnected"]), 
+            ok;
+        _ ->
+            Reason = "connection error",
+            io:format("~p", [Reason])
+    end.
+
+
+do_post(Socket) ->
+    DeviceType = "WANIPConnection:1",
+    Action = "GetStatusInfo",
+    ControlUrl = "/ipc",
+    Host = "192.168.1.7",
+    Port = 1900,
+
+    Body = io_lib:format("<?xml version=\"1.0\"?><s:Envelope xmlns:s=\"http://schemas.xmlsoap.org/soap/envelope/\" s:encodingStyle=\"http://schemas.xmlsoap.org/soap/encoding/\"><s:Body><u:~s xmlns:u=\"urn:schemas-upnp-org:service:~s\"></u:~s></s:Body></s:Envelope>", 
+        [Action, DeviceType, Action]),
+
+    Length = erlang:length(Body),
+
+    Msg = lists:flatten(io_lib:format("POST ~s HTTP/1.1\r\nHOST: ~s:~p\r\nCONTENT-TYPE: text/xml; charset=\"utf-8\"\r\nCONTENT-LENGTH: ~p\r\nUSER-AGENT: OS/version UPnP/1.1 product/version\r\nSOAPACTION: \"urn:schemas-upnp-org:service:~s#~s\"\r\n\r\n~s", 
+        [ControlUrl, Host, Port, Length, DeviceType, Action, Body])),
+
+    io:format("~n~p~n~n", [Msg]),
+
+    gen_tcp:send(Socket, erlang:list_to_binary(Msg)).
+
+
 %%===================== server ============================
 
 server() ->
