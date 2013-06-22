@@ -8,6 +8,7 @@
 
 get_external_ip() ->
     {GatewayIp, GatewayPort} = get_gateway_ip_port(),
+    %{GatewayIp, GatewayPort} = {"192.168.1.1", 1900},
 
     case gen_tcp:connect(GatewayIp, GatewayPort, [list, {active, true}]) of
         {ok, Socket} ->
@@ -15,7 +16,7 @@ get_external_ip() ->
             RequestData = get_GetExternalIPAddress_request_data(GatewayIp, GatewayPort),
             gen_tcp:send(Socket, RequestData),
             ExternalIp = receive {tcp, _, Msg} ->
-                        %io:format("received:~p~n", [Msg]),
+                        io:format("received:~p~n", [Msg]),
                         StartIndex = string:str(Msg, "<NewExternalIPAddress>") + erlang:length("<NewExternalIPAddress>"),
                         Length = string:str(Msg,"</NewExternalIPAddress>") - StartIndex,
                         string:substr(Msg, StartIndex, Length)
@@ -25,9 +26,8 @@ get_external_ip() ->
             gen_tcp:close(Socket),
             %io:format("==========================> ~p~n", ["disconnected"]), 
             ExternalIp;
-        _ ->
-            Reason = "connection error",
-            io:format("~p", [Reason]),
+        Any ->
+            io:format("~n~p~n~n", [Any]),
             error
     end.
 
@@ -38,6 +38,7 @@ add_port_mapping() ->
 
 add_port_mapping(ExternalPort, InternalPort, LeaseDuration) ->
     {GatewayIp, GatewayPort} = get_gateway_ip_port(),
+    %{GatewayIp, GatewayPort} = {"192.168.1.1", 1900},
 
     case gen_tcp:connect(GatewayIp, GatewayPort, [list, {active, true}]) of
         {ok, Socket} ->
@@ -51,9 +52,8 @@ add_port_mapping(ExternalPort, InternalPort, LeaseDuration) ->
             end,
             gen_tcp:close(Socket),
             io:format("==========================> ~p~n", ["disconnected"]);
-        _ ->
-            Reason = "connection error",
-            io:format("~p", [Reason]),
+        Any ->
+            io:format("~n~p~n~n", [Any]),
             error
     end.
 
@@ -79,9 +79,10 @@ msearch() ->
 
     {ok, Socket} = gen_udp:open(0, [list, {broadcast, true}]),
     ok = gen_udp:send(Socket, "239.255.255.250", 1900, Request),
+    io:format("sent: ~n~p~n~n", [Request]),
     Result = receive 
         {udp, _Socket, _Ip, _Port, Msg} ->
-            %io:format("M-SEARCH result: ~p~n", [Msg]), 
+            %io:format("M-SEARCH result: ~n~p~n~n", [Msg]), 
             Msg
     after 10000 ->
         error
